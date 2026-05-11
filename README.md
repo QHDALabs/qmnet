@@ -150,10 +150,13 @@ python qmnet.py
 ## Repository structure
 
 ```
-qmnet/
-├── routed_measurement_full_experiment.py   # Decoherence routing experiment
-├── qmnet.py                                # Network, scrambling, PW engine
-└── README.md
+.
+├── LICENSE
+├── README.md
+├── qmnet.py    # Network, scrambling, PW engine
+├── qmnet_v3.py
+├── qmnet_v4.py
+└── routed_measurement_full_experiment.py  # Decoherence routing experiment
 ```
 
 ---
