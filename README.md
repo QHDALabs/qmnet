@@ -154,8 +154,8 @@ python qmnet.py
 ├── LICENSE
 ├── README.md
 ├── qmnet.py    # Network, scrambling, PW engine
-├── qmnet_v3.py
-├── qmnet_v4.py
+├── qmnet_v3.py # Bridge experiment
+├── qmnet_v4.py # Bridge experiment
 └── routed_measurement_full_experiment.py  # Decoherence routing experiment
 ```
 
