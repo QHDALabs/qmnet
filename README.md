@@ -1,131 +1,127 @@
 # QHDALabs / qmnet
 
-![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=flat-square&logo=python&logoColor=white)
-![Qiskit](https://img.shields.io/badge/Qiskit-%E2%89%A51.0-6929C4?style=flat-square&logo=qiskit&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT%20(pending)-yellow?style=flat-square&logo=opensourceinitiative&logoColor=white)
-![Status](https://img.shields.io/badge/Status-Research%20%2F%20Experimental-orange?style=flat-square&logo=flask&logoColor=white)
-![Platform](https://img.shields.io/badge/Platform-Qiskit%20Aer%20Simulator-blueviolet?style=flat-square&logo=ibm&logoColor=white)
-![Target QPU](https://img.shields.io/badge/Target%20QPU-IBM%20Heron-005F9E?style=flat-square&logo=ibm&logoColor=white)
-![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen?style=flat-square&logo=github&logoColor=white)
-
 **Quantum Measurement Routing & Relational Network Research**
 
 *Krzysztof Banasiewicz — independent researcher*
+
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Qiskit%201.0%2B-purple)](https://qiskit.org)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com/QHDALabs/qmnet/pulls)
 
 ---
 
 ## What this is
 
-This repository contains two experimental modules exploring a practical question:
-> *How much control do we have over where quantum information goes — and when?*
+This repository explores a practical question in near-term quantum computing:
 
-Most near-term quantum hardware research focuses on gate fidelity and error correction.
-This work takes a different angle: **routing** — treating the flow of information from a
-quantum system into its environment not as an unavoidable problem, but as a controllable
-parameter.
+> *Can we treat mid-circuit measurements not as passive readout, but as active resources — using measurement outcomes to steer the topology of subsequent quantum operations?*
 
-The two modules grew from the same question but attack it at different levels.
+The work has evolved through two directions that share the same foundation:
+
+**Direction 1 — Decoherence routing**: treating information leakage as a dial rather than a switch, using ancilla coupling angle to tune how much information escapes and through which path.
+
+**Direction 2 — Measurement-fueled bridges**: using a mid-circuit measurement result to conditionally add a CZ edge (bridge) between otherwise-disconnected qubits, and observing how this affects a Loschmidt echo experiment.
+
+A technical note documenting the bridge experiment results is available in this repository.
 
 ---
 
-## Modules
+## Published note
+
+**[Measurement-Fueled Conditional Bridges in Graph-State Echo Experiments](qhdalabs-Bridge-note-draft.pdf)**
+
+Key findings from the bridge experiment:
+
+- Conditional CZ bridge applied in the m=1 measurement branch suppresses echo return probability to **P_ret = 0.000** at scrambler depths T=2 and T=4, while the m=0 branch retains P_ret ≈ 0.12–0.13
+- At T=0 and T=8, ⟨Z_0⟩ is sharply polarized: **+1.000 in m=0, −1.000 in m=1** — a deterministic Z-flip conditioned on the bridge measurement
+- A topology sweep across five bridge pairs shows that the pair **(1,3)** — whose qubits share no brickwork layer with the scrambler — is approximately half as disruptive as other pairs, suggesting scrambler-edge overlap drives disruption strength
+
+These are preliminary results from ideal (noise-free) simulation on 5 qubits. Physical interpretation and scalability remain open questions.
+
+---
+
+## Repository structure
+
+```
+qmnet/
+├── qmnet_v3.py                            # Bridge experiment — clean version (use this)
+├── qmnet_v4.py                            # Bridge experiment + topology sweep
+├── qmnet.py                               # Earlier exploration: scrambling, PW engine
+├── routed_measurement_full_experiment.py  # Decoherence routing experiment
+├── qhdalabs-Bridge-note-draft.pdf         # Technical note (draft 1.0)
+├── LICENSE
+└── README.md
+```
+
+**Where to start:** `qmnet_v3.py` for the bridge experiment, `routed_measurement_full_experiment.py` for the decoherence routing work. `qmnet.py` is an earlier monolithic file kept for reference.
+
+---
+
+## Experiments
 
 ### `routed_measurement_full_experiment.py`
+**Decoherence as a dial**
 
-**Decoherence as a dial, not a switch**
-
-A direct comparison of three information-extraction regimes:
+Compares three information-extraction regimes on a single system qubit:
 
 | Mode | What happens |
-| --- | --- |
-| `strong_direct_z` | Projective Z measurement channel — full decoherence |
-| `ancilla_cx` | Information routed through ancilla via CX — equivalent decoherence, different path |
-| `ancilla_weak_ry(θ)` | Partial coupling via controlled RY — tunable information leak |
+|---|---|
+| `strong_direct_z` | Projective Z channel — full decoherence |
+| `ancilla_cx` | Information routed via CX to ancilla — equivalent decoherence, different path |
+| `ancilla_weak_ry(θ)` | Partial coupling via controlled RY — tunable leak |
 
-The weak routing sweep across θ ∈ [0, π] produces a clean trade-off curve: as coupling
-angle increases, purity drops, entropy rises, and fidelity to the original state degrades.
-The Bloch vector components track this continuously.
+The weak routing sweep across θ ∈ [0, π] produces a smooth trade-off: purity drops, entropy rises, fidelity to |+⟩ degrades continuously. Bloch vector components track this at each θ.
 
-**Why it matters for hardware:** Near-term devices (NISQ era) cannot eliminate decoherence. But if we can *route* it —
-choosing which ancilla qubit absorbs which information, and how much — that is a
-primitive for building smarter error mitigation layers above the hardware abstraction.
+---
+
+### `qmnet_v3.py` / `qmnet_v4.py`
+**Measurement-fueled bridge experiment**
+
+Full circuit sequence:
+
+```
+|G⟩ → U(T) → Z(q0) → H(q1) → measure(q1) → m
+     → if m==1: CZ(bridge_pair)
+     → U†(T) → final measurement
+```
+
+`qmnet_v3.py` runs bridge pair `(0,4)` across scrambler depths T ∈ {0,1,2,3,4,6,8} with baseline stabilizer echo for comparison.
+
+`qmnet_v4.py` adds a topology sweep across five bridge pairs to test whether scrambler-edge overlap determines disruption strength.
 
 ---
 
 ### `qmnet.py`
+**Earlier exploration (reference)**
 
-**Dynamic topology and relational time**
-
-A more experimental module. Three ideas developed together:
-
-**1. Graph states as a connectivity substrate**
-
-5-qubit star and line graph states with full stabilizer verification. The Loschmidt echo
-scan (`run_echo_scan_ideal`) measures how a local perturbation W propagates and scrambles
-across the network as a function of circuit depth T. Stabilizer expectation values decay
-as scrambling increases — a quantitative handle on information spreading.
-
-**2. Measurement-fueled bridges**
-
-The `conditional_cz_bridge_dynamic` and `bridge_bell_gate_demo` circuits implement a
-topology switch: a mid-circuit measurement result determines whether a CZ gate fires
-between two otherwise-disconnected qubits. The CCZ-based variant avoids dynamic circuit
-requirements while preserving the conditional entanglement effect.
-
-The key observable: ZZ correlation conditioned on the ancilla measurement outcome.
-When the bridge fires (a=1), strong ZZ correlation appears between qubits 0 and 4 —
-qubits that share no direct gate in the base circuit.
-
-**3. Page–Wootters relational time**
-
-Implementation of the Page–Wootters mechanism: a "history state" entangling a clock
-register (N_clock qubits) with a system register. Conditional expectation values
-extracted by projecting onto clock basis states reproduce standard Schrödinger evolution
-to within numerical precision (MSE < 1e-5 for N_clock=3).
-
-This is a verification implementation, not a new result — but it is a working,
-self-contained PW engine that can be extended.
+Includes: graph state generation, Loschmidt echo scan with stabilizer estimator, CCZ-based bridge demo, entanglement swapping circuits, and a Page–Wootters history state engine. Kept for reference; `qmnet_v3.py` is the cleaner successor for the bridge work.
 
 ---
 
 ## Current status
 
-Both modules produce numerically consistent results on Qiskit Aer simulator.
-No physical QPU runs yet — IBM Quantum Heron is the target for next validation.
-
-**What is confirmed:**
-
-- ✅ Stabilizer values track scrambling depth as expected
-- ✅ ZZ bridge correlation: ~0.0 for a=0, ~0.8–1.0 for a=1 (8192 shots)
-- ✅ Weak measurement trade-off curve is smooth and physically interpretable
-- ✅ PW history state matches Schrödinger evolution for N_clock ∈ {2, 3}
-
-**What is not claimed:**
-
-- ❌ Novel physics results
-- ❌ Hardware benchmarks
-- ❌ Scalability beyond ~5–7 qubits without error correction
+| Result | Status |
+|---|---|
+| Stabilizer values track scrambling depth | ✅ confirmed (ideal sim) |
+| Bridge suppresses P_ret to 0 at T=2,4 in m=1 branch | ✅ confirmed (ideal sim) |
+| Z-flip ⟨Z_0⟩ = ±1 conditioned on bridge at T=0,8 | ✅ confirmed (ideal sim) |
+| Topology sweep: (1,3) least disruptive | ✅ confirmed (ideal sim) |
+| Noise model validation | ⬜ not yet |
+| Scaling beyond 5 qubits | ⬜ not yet |
+| Physical QPU run | ⬜ not yet — IBM Heron is target |
 
 ---
 
 ## Dependencies
 
-![qiskit](https://img.shields.io/badge/qiskit-%E2%89%A51.0-6929C4?style=flat-square&logo=qiskit&logoColor=white)
-![qiskit-aer](https://img.shields.io/badge/qiskit--aer-%E2%89%A50.13-6929C4?style=flat-square&logo=qiskit&logoColor=white)
-![numpy](https://img.shields.io/badge/numpy-latest-013243?style=flat-square&logo=numpy&logoColor=white)
-![scipy](https://img.shields.io/badge/scipy-latest-8CAAE6?style=flat-square&logo=scipy&logoColor=white)
-![matplotlib](https://img.shields.io/badge/matplotlib-latest-11557C?style=flat-square&logo=python&logoColor=white)
-
 ```
 qiskit >= 1.0
 qiskit-aer >= 0.13
-qiskit-ibm-runtime (optional, for QPU access)
 numpy
 scipy
 matplotlib
+qiskit-ibm-runtime  # optional, for QPU access
 ```
-
-Install:
 
 ```bash
 pip install qiskit qiskit-aer scipy matplotlib
@@ -136,66 +132,41 @@ pip install qiskit qiskit-aer scipy matplotlib
 ## Running
 
 ```bash
-# Weak measurement sweep + plots
+# Decoherence routing sweep + plots (~1 min)
 python routed_measurement_full_experiment.py
 
-# Full qmnet demo: graph states, echo, bridges, Page-Wootters
-python qmnet.py
-```
+# Bridge experiment, single pair, full T sweep (~2 min)
+python qmnet_v3.py
 
-⏱️ Expected runtime on a standard laptop: **2–5 minutes** for qmnet full run.
-
----
-
-## Repository structure
-
-```
-.
-├── LICENSE
-├── README.md
-├── qmnet.py    # Network, scrambling, PW engine
-├── qmnet_v3.py # Bridge experiment
-├── qmnet_v4.py # Bridge experiment
-└── routed_measurement_full_experiment.py  # Decoherence routing experiment
+# Bridge experiment + topology sweep (~5 min)
+python qmnet_v4.py
 ```
 
 ---
 
-## Open questions (where help is welcome)
+## Open questions — where collaboration is welcome
 
-This project is at the boundary of what one person can develop alone.
-Contributions, critique, and collaboration are genuinely welcome on:
-
-- 🔬 **Scaling the bridge mechanism** — does conditional topology switching remain coherent
-beyond 7–10 qubits, and how does it interact with realistic noise models?
-- 📐 **Formalization** — the routing layer concept needs proper density matrix channel
-formalism. Looking for a collaborator with QEC background.
-- 🖥️ **QPU validation** — access to IBM Heron or equivalent for hardware runs.
-- 🕰️ **The PW engine** — extending to continuous-variable clocks and larger system registers.
+- **Noise model**: does the bridge suppression effect survive under realistic depolarizing + T1/T2 noise?
+- **Scaling**: does scrambler-edge overlap remain the dominant factor at 7–10 qubits?
+- **Formal channel analysis**: express the bridge as a quantum channel acting on the echo and derive its effect analytically — needs QEC/density matrix background
+- **QPU access**: IBM Heron or equivalent for hardware validation of the T=2 case (circuit is shallow enough)
+- **Endorsement for arXiv**: if you have quant-ph endorser status and find this work interesting, please get in touch
 
 ---
 
-## Contact & collaboration
+## Contact
 
-[![Email](https://img.shields.io/badge/Email-qhdalabs.contact%40gmail.com-D14836?style=flat-square&logo=gmail&logoColor=white)](mailto:qhdalabs.contact@gmail.com)
-[![GitHub](https://img.shields.io/badge/GitHub-QHDALabs-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/QHDALabs)
+**Krzysztof Banasiewicz**
+qhdalabs.contact@gmail.com | [LinkedIn](https://www.linkedin.com/in/krzyshtoof)
 
-**Krzysztof Banasiewicz** <qhdalabs.contact@gmail.com>
-
-If you find something wrong, say so directly. If you find something interesting,
-let's talk. If you want to use this in your own work — go ahead, just link back.
+If you find something wrong, say so directly. If you find something interesting, let's talk. If you want to use this in your own work — go ahead, just link back.
 
 ---
 
 ## License
 
-[![License](https://img.shields.io/badge/License-MIT%20(pending%20patent%20review)-yellow?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
-
-See `LICENSE` — currently all rights reserved pending patent review.
-The code is shared for research visibility and collaboration purposes.
-Open-source release under MIT is planned once the patent process concludes.
+MIT — see `LICENSE`.
 
 ---
 
-*🔭 This is independent research. No institutional affiliation. No grants.
-Just curiosity, Qiskit, and too many late nights.*
+*Independent research. No institutional affiliation. No grants. Just curiosity, Qiskit, and too many late nights.*
